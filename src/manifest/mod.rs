@@ -57,7 +57,11 @@ pub struct OutputConfig {
 
 impl Default for OutputConfig {
     fn default() -> Self {
-        Self { proof_certificates: false, error_format: default_error_format(), ci_mode: false }
+        Self {
+            proof_certificates: false,
+            error_format: default_error_format(),
+            ci_mode: false,
+        }
     }
 }
 
@@ -73,20 +77,36 @@ pub struct LevelsConfig {
 
 impl Default for LevelsConfig {
     fn default() -> Self {
-        Self { enforce: default_enforce(), warn: vec![7, 8], skip: vec![9, 10] }
+        Self {
+            enforce: default_enforce(),
+            warn: vec![7, 8],
+            skip: vec![9, 10],
+        }
     }
 }
 
-fn default_level() -> u8 { 6 }
-fn default_schema_source() -> String { "introspect".to_string() }
-fn default_queries() -> Vec<String> { vec!["src/**/*.sql".to_string()] }
-fn default_embedding() -> String { "standalone".to_string() }
-fn default_error_format() -> String { "human".to_string() }
-fn default_enforce() -> Vec<u8> { vec![1, 2, 3, 4, 5, 6] }
+fn default_level() -> u8 {
+    6
+}
+fn default_schema_source() -> String {
+    "introspect".to_string()
+}
+fn default_queries() -> Vec<String> {
+    vec!["src/**/*.sql".to_string()]
+}
+fn default_embedding() -> String {
+    "standalone".to_string()
+}
+fn default_error_format() -> String {
+    "human".to_string()
+}
+fn default_enforce() -> Vec<u8> {
+    vec![1, 2, 3, 4, 5, 6]
+}
 
 pub fn load_manifest(path: &str) -> Result<Manifest> {
-    let content = std::fs::read_to_string(path)
-        .with_context(|| format!("Failed to read: {}", path))?;
+    let content =
+        std::fs::read_to_string(path).with_context(|| format!("Failed to read: {}", path))?;
     toml::from_str(&content).with_context(|| format!("Failed to parse: {}", path))
 }
 
@@ -103,7 +123,8 @@ pub fn init_manifest(language: &str, database: &str) -> Result<()> {
         _ => "sql",
     };
 
-    let template = format!(r#"# TypedQLiser manifest — formal type safety for {language} queries
+    let template = format!(
+        r#"# TypedQLiser manifest — formal type safety for {language} queries
 # Docs: https://github.com/hyperpolymath/typedqliser
 
 [typedql]
@@ -129,7 +150,8 @@ ci-mode = false
 enforce = [1, 2, 3, 4, 5, 6]
 warn = [7, 8]
 skip = [9, 10]
-"#);
+"#
+    );
 
     std::fs::write(path, template)?;
     println!("Created typedqliser.toml for {} on {}", language, database);

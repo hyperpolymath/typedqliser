@@ -6,15 +6,12 @@
 
 use anyhow::{Context, Result};
 use sqlparser::ast::{
-    Expr, Query, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins,
-    BinaryOperator, Value,
+    BinaryOperator, Expr, Query, SelectItem, SetExpr, Statement, TableFactor, TableWithJoins, Value,
 };
 use sqlparser::dialect::{GenericDialect, MySqlDialect, PostgreSqlDialect, SQLiteDialect};
 use sqlparser::parser::Parser;
 
-use super::{
-    NullIssue, QueryLanguagePlugin, Schema, SchemaIssue, TypeIssue,
-};
+use super::{NullIssue, QueryLanguagePlugin, Schema, SchemaIssue, TypeIssue};
 
 /// SQL plugin supporting multiple dialects.
 pub struct SqlPlugin {
@@ -41,8 +38,7 @@ impl SqlPlugin {
     /// Parse SQL into AST statements.
     fn parse(&self, query: &str) -> Result<Vec<Statement>> {
         let dialect = self.dialect();
-        Parser::parse_sql(dialect.as_ref(), query)
-            .with_context(|| "SQL parse error")
+        Parser::parse_sql(dialect.as_ref(), query).with_context(|| "SQL parse error")
     }
 
     /// Extract all table names referenced in a statement.
@@ -63,18 +59,16 @@ impl SqlPlugin {
                     tables.push(name);
                 }
             }
-            Statement::Delete(delete) => {
-                match &delete.from {
-                    sqlparser::ast::FromTable::WithFromKeyword(twjs) |
-                    sqlparser::ast::FromTable::WithoutKeyword(twjs) => {
-                        for twj in twjs {
-                            if let Some(name) = Self::table_factor_name(&twj.relation) {
-                                tables.push(name);
-                            }
+            Statement::Delete(delete) => match &delete.from {
+                sqlparser::ast::FromTable::WithFromKeyword(twjs)
+                | sqlparser::ast::FromTable::WithoutKeyword(twjs) => {
+                    for twj in twjs {
+                        if let Some(name) = Self::table_factor_name(&twj.relation) {
+                            tables.push(name);
                         }
                     }
                 }
-            }
+            },
             _ => {}
         }
         tables
@@ -112,23 +106,20 @@ impl SqlPlugin {
     /// Extract all column references from a statement.
     fn extract_column_refs(statement: &Statement) -> Vec<(Option<String>, String)> {
         let mut cols = Vec::new();
-        match statement {
-            Statement::Query(query) => {
-                if let SetExpr::Select(select) = query.body.as_ref() {
-                    for item in &select.projection {
-                        match item {
-                            SelectItem::UnnamedExpr(expr) | SelectItem::ExprWithAlias { expr, .. } => {
-                                Self::extract_cols_from_expr(expr, &mut cols);
-                            }
-                            _ => {}
-                        }
+        if let Statement::Query(query) = statement
+            && let SetExpr::Select(select) = query.body.as_ref()
+        {
+            for item in &select.projection {
+                match item {
+                    SelectItem::UnnamedExpr(expr) | SelectItem::ExprWithAlias { expr, .. } => {
+                        Self::extract_cols_from_expr(expr, &mut cols);
                     }
-                    if let Some(ref selection) = select.selection {
-                        Self::extract_cols_from_expr(selection, &mut cols);
-                    }
+                    _ => {}
                 }
             }
-            _ => {}
+            if let Some(ref selection) = select.selection {
+                Self::extract_cols_from_expr(selection, &mut cols);
+            }
         }
         cols
     }
@@ -158,17 +149,15 @@ impl SqlPlugin {
                 Self::extract_cols_from_expr(inner, cols);
             }
             Expr::Function(func) => {
-                match &func.args {
-                    sqlparser::ast::FunctionArguments::List(arg_list) => {
-                        for arg in &arg_list.args {
-                            if let sqlparser::ast::FunctionArg::Unnamed(
-                                sqlparser::ast::FunctionArgExpr::Expr(e),
-                            ) = arg {
-                                Self::extract_cols_from_expr(e, cols);
-                            }
+                if let sqlparser::ast::FunctionArguments::List(arg_list) = &func.args {
+                    for arg in &arg_list.args {
+                        if let sqlparser::ast::FunctionArg::Unnamed(
+                            sqlparser::ast::FunctionArgExpr::Expr(e),
+                        ) = arg
+                        {
+                            Self::extract_cols_from_expr(e, cols);
                         }
                     }
-                    _ => {}
                 }
             }
             _ => {}
@@ -237,20 +226,16 @@ impl SqlPlugin {
     }
 
     /// Attempt to infer the SQL type of an expression given the schema.
-    fn infer_expr_type(
-        expr: &Expr,
-        schema: &Schema,
-        tables_in_query: &[String],
-    ) -> Option<String> {
+    fn infer_expr_type(expr: &Expr, schema: &Schema, tables_in_query: &[String]) -> Option<String> {
         match expr {
             Expr::Identifier(ident) => {
                 let col_name = ident.value.to_lowercase();
                 // Search all tables in the query for this column
                 for table_name in tables_in_query {
-                    if let Some(table) = schema.tables.iter().find(|t| t.name == *table_name) {
-                        if let Some(col) = table.columns.iter().find(|c| c.name == col_name) {
-                            return Some(col.col_type.clone());
-                        }
+                    if let Some(table) = schema.tables.iter().find(|t| t.name == *table_name)
+                        && let Some(col) = table.columns.iter().find(|c| c.name == col_name)
+                    {
+                        return Some(col.col_type.clone());
                     }
                 }
                 None
@@ -258,10 +243,10 @@ impl SqlPlugin {
             Expr::CompoundIdentifier(parts) if parts.len() == 2 => {
                 let table_name = parts[0].value.to_lowercase();
                 let col_name = parts[1].value.to_lowercase();
-                if let Some(table) = schema.tables.iter().find(|t| t.name == table_name) {
-                    if let Some(col) = table.columns.iter().find(|c| c.name == col_name) {
-                        return Some(col.col_type.clone());
-                    }
+                if let Some(table) = schema.tables.iter().find(|t| t.name == table_name)
+                    && let Some(col) = table.columns.iter().find(|c| c.name == col_name)
+                {
+                    return Some(col.col_type.clone());
                 }
                 None
             }
@@ -396,12 +381,11 @@ impl QueryLanguagePlugin for SqlPlugin {
             let table_refs = Self::extract_table_refs(stmt);
 
             // Check WHERE clause binary operations for type compatibility
-            if let Statement::Query(query) = stmt {
-                if let SetExpr::Select(select) = query.body.as_ref() {
-                    if let Some(ref selection) = select.selection {
-                        Self::check_expr_types(selection, schema, &table_refs, &mut issues);
-                    }
-                }
+            if let Statement::Query(query) = stmt
+                && let SetExpr::Select(select) = query.body.as_ref()
+                && let Some(ref selection) = select.selection
+            {
+                Self::check_expr_types(selection, schema, &table_refs, &mut issues);
             }
         }
 
@@ -417,38 +401,35 @@ impl QueryLanguagePlugin for SqlPlugin {
             let table_refs = Self::extract_table_refs(stmt);
 
             // Check if SELECT includes nullable columns without COALESCE or IS NULL handling
-            if let Statement::Query(q) = stmt {
-                if let SetExpr::Select(select) = q.body.as_ref() {
-                    for item in &select.projection {
-                        match item {
-                            SelectItem::UnnamedExpr(Expr::Identifier(ident))
-                            | SelectItem::ExprWithAlias {
-                                expr: Expr::Identifier(ident),
-                                ..
-                            } => {
-                                let col_name = ident.value.to_lowercase();
-                                for table_name in &table_refs {
-                                    if let Some(table) =
-                                        schema.tables.iter().find(|t| t.name == *table_name)
-                                    {
-                                        if let Some(col) =
-                                            table.columns.iter().find(|c| c.name == col_name)
-                                        {
-                                            if col.nullable {
-                                                issues.push(NullIssue {
+            if let Statement::Query(q) = stmt
+                && let SetExpr::Select(select) = q.body.as_ref()
+            {
+                for item in &select.projection {
+                    match item {
+                        SelectItem::UnnamedExpr(Expr::Identifier(ident))
+                        | SelectItem::ExprWithAlias {
+                            expr: Expr::Identifier(ident),
+                            ..
+                        } => {
+                            let col_name = ident.value.to_lowercase();
+                            for table_name in &table_refs {
+                                if let Some(table) =
+                                    schema.tables.iter().find(|t| t.name == *table_name)
+                                    && let Some(col) =
+                                        table.columns.iter().find(|c| c.name == col_name)
+                                    && col.nullable
+                                {
+                                    issues.push(NullIssue {
                                                     message: format!(
                                                         "Nullable column '{}' selected without COALESCE or null handling",
                                                         col_name
                                                     ),
                                                     column: col_name.clone(),
                                                 });
-                                            }
-                                        }
-                                    }
                                 }
                             }
-                            _ => {}
                         }
+                        _ => {}
                     }
                 }
             }

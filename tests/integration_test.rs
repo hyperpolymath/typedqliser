@@ -9,7 +9,7 @@
 //!   - Aspect: invalid SQL, missing tables, type mismatches, nullable access
 //!   - Edge cases: empty queries, nested subqueries, JOIN types, GROUP BY
 
-use typedqliser::plugins::{get_plugin, ColumnDef, Schema, SchemaIssue, TableDef};
+use typedqliser::plugins::{ColumnDef, Schema, SchemaIssue, TableDef, get_plugin};
 
 // ---------------------------------------------------------------------------
 // Helper: build a test schema with known tables, columns, types, nullability
@@ -167,11 +167,7 @@ fn l1_valid_update() {
 #[test]
 fn l1_valid_delete() {
     let plugin = get_plugin("sql").unwrap();
-    assert!(
-        plugin
-            .parse_check("DELETE FROM users WHERE id = 1")
-            .is_ok()
-    );
+    assert!(plugin.parse_check("DELETE FROM users WHERE id = 1").is_ok());
 }
 
 #[test]
@@ -199,9 +195,7 @@ fn l1_valid_group_by_having() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT user_id, COUNT(*) FROM posts GROUP BY user_id HAVING COUNT(*) > 5"
-            )
+            .parse_check("SELECT user_id, COUNT(*) FROM posts GROUP BY user_id HAVING COUNT(*) > 5")
             .is_ok()
     );
 }
@@ -233,11 +227,7 @@ fn l1_invalid_syntax_unclosed_paren() {
 #[test]
 fn l1_multiple_statements() {
     let plugin = get_plugin("sql").unwrap();
-    assert!(
-        plugin
-            .parse_check("SELECT 1; SELECT 2; SELECT 3")
-            .is_ok()
-    );
+    assert!(plugin.parse_check("SELECT 1; SELECT 2; SELECT 3").is_ok());
 }
 
 #[test]
@@ -297,9 +287,7 @@ fn l2_missing_column() {
         .schema_check("SELECT nonexistent_col FROM users", &schema)
         .unwrap();
     assert!(
-        issues
-            .iter()
-            .any(|i| i.message.contains("nonexistent_col")),
+        issues.iter().any(|i| i.message.contains("nonexistent_col")),
         "Should detect missing column"
     );
 }
@@ -490,9 +478,7 @@ fn l3_boolean_comparison_compatible() {
 fn l3_no_where_clause_no_issues() {
     let plugin = get_plugin("sql").unwrap();
     let schema = test_schema();
-    let issues = plugin
-        .type_check("SELECT id FROM users", &schema)
-        .unwrap();
+    let issues = plugin.type_check("SELECT id FROM users", &schema).unwrap();
     assert!(
         issues.is_empty(),
         "Query without WHERE clause should have no type issues"
@@ -576,9 +562,7 @@ fn l4_select_star_not_flagged() {
     // so the null checker won't flag individual columns.
     let plugin = get_plugin("sql").unwrap();
     let schema = test_schema();
-    let issues = plugin
-        .null_check("SELECT * FROM users", &schema)
-        .unwrap();
+    let issues = plugin.null_check("SELECT * FROM users", &schema).unwrap();
     // The current implementation only checks UnnamedExpr(Identifier), not Wildcard.
     // This test documents current behavior.
     assert!(
@@ -774,10 +758,7 @@ fn aspect_boolean_vs_integer() {
         .type_check("SELECT id FROM users WHERE active = 42", &schema)
         .unwrap();
     // active is boolean, 42 is numeric — should flag
-    assert!(
-        !issues.is_empty(),
-        "Boolean vs integer should be flagged"
-    );
+    assert!(!issues.is_empty(), "Boolean vs integer should be flagged");
 }
 
 #[test]
@@ -787,10 +768,7 @@ fn aspect_text_arithmetic() {
     let issues = plugin
         .type_check("SELECT id FROM users WHERE name * 2 > 0", &schema)
         .unwrap();
-    assert!(
-        !issues.is_empty(),
-        "Arithmetic on text should be flagged"
-    );
+    assert!(!issues.is_empty(), "Arithmetic on text should be flagged");
 }
 
 // ============================================================================
@@ -807,8 +785,7 @@ fn edge_nested_subquery_parse() {
 #[test]
 fn edge_correlated_subquery_parse() {
     let plugin = get_plugin("sql").unwrap();
-    let query =
-        "SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM posts p WHERE p.user_id = u.id)";
+    let query = "SELECT * FROM users u WHERE EXISTS (SELECT 1 FROM posts p WHERE p.user_id = u.id)";
     assert!(plugin.parse_check(query).is_ok());
 }
 
@@ -828,9 +805,7 @@ fn edge_inner_join() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT u.id FROM users u INNER JOIN posts p ON u.id = p.user_id"
-            )
+            .parse_check("SELECT u.id FROM users u INNER JOIN posts p ON u.id = p.user_id")
             .is_ok()
     );
 }
@@ -840,9 +815,7 @@ fn edge_left_join() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT u.id FROM users u LEFT JOIN posts p ON u.id = p.user_id"
-            )
+            .parse_check("SELECT u.id FROM users u LEFT JOIN posts p ON u.id = p.user_id")
             .is_ok()
     );
 }
@@ -852,9 +825,7 @@ fn edge_right_join() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT u.id FROM users u RIGHT JOIN posts p ON u.id = p.user_id"
-            )
+            .parse_check("SELECT u.id FROM users u RIGHT JOIN posts p ON u.id = p.user_id")
             .is_ok()
     );
 }
@@ -864,9 +835,7 @@ fn edge_full_outer_join() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT u.id FROM users u FULL OUTER JOIN posts p ON u.id = p.user_id"
-            )
+            .parse_check("SELECT u.id FROM users u FULL OUTER JOIN posts p ON u.id = p.user_id")
             .is_ok()
     );
 }
@@ -920,9 +889,7 @@ fn edge_having_parse() {
     let plugin = get_plugin("sql").unwrap();
     assert!(
         plugin
-            .parse_check(
-                "SELECT user_id, COUNT(*) FROM posts GROUP BY user_id HAVING COUNT(*) > 3"
-            )
+            .parse_check("SELECT user_id, COUNT(*) FROM posts GROUP BY user_id HAVING COUNT(*) > 3")
             .is_ok()
     );
 }

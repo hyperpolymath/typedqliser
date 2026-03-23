@@ -5,6 +5,7 @@
 // Each supported query language implements the QueryLanguagePlugin trait.
 
 pub mod sql;
+pub mod wasm;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -86,6 +87,7 @@ pub struct NullIssue {
 pub fn get_plugin(language: &str) -> Result<Box<dyn QueryLanguagePlugin>> {
     match language {
         "sql" | "postgresql" | "mysql" | "sqlite" => Ok(Box::new(sql::SqlPlugin::new(language))),
+        "wasm" | "twasm" | "typed-wasm" => Ok(Box::new(wasm::WasmPlugin::new())),
         _ => anyhow::bail!(
             "Unsupported language: {}. Run `typedqliser languages` to see options.",
             language
@@ -97,15 +99,49 @@ pub fn get_plugin(language: &str) -> Result<Box<dyn QueryLanguagePlugin>> {
 pub fn print_languages() {
     println!("=== Supported Query Languages ===");
     println!();
-    println!("  {:12} {:40} {:10} {}", "Language", "Databases", "Max Level", "Status");
-    println!("  {:12} {:40} {:10} {}", "--------", "---------", "---------", "------");
-    println!("  {:12} {:40} {:10} {}", "sql",     "PostgreSQL, MySQL, SQLite, MSSQL",    "6",  "Active (MVP)");
-    println!("  {:12} {:40} {:10} {}", "graphql", "Any GraphQL API",                      "6",  "Planned");
-    println!("  {:12} {:40} {:10} {}", "cypher",  "Neo4j, Memgraph, Apache AGE",          "4",  "Planned");
-    println!("  {:12} {:40} {:10} {}", "sparql",  "Any RDF triplestore",                  "4",  "Planned");
-    println!("  {:12} {:40} {:10} {}", "vql",     "VeriSimDB",                             "10", "Planned (via VQL-UT)");
-    println!("  {:12} {:40} {:10} {}", "kql",     "Azure Data Explorer / Kusto",           "4",  "Planned");
-    println!("  {:12} {:40} {:10} {}", "gql",     "ISO GQL databases",                     "4",  "Planned");
-    println!("  {:12} {:40} {:10} {}", "fqldt",   "Lithoglyph",                            "10", "Planned");
-    println!("  {:12} {:40} {:10} {}", "custom",  "User-defined grammar",                  "var","Plugin API");
+    println!(
+        "  {:12} {:40} {:10} Status",
+        "Language", "Databases", "Max Level"
+    );
+    println!(
+        "  {:12} {:40} {:10} ------",
+        "--------", "---------", "---------"
+    );
+    println!(
+        "  {:12} {:40} {:10} Active (MVP)",
+        "sql", "PostgreSQL, MySQL, SQLite, MSSQL", "6"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned",
+        "graphql", "Any GraphQL API", "6"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned",
+        "cypher", "Neo4j, Memgraph, Apache AGE", "4"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned",
+        "sparql", "Any RDF triplestore", "4"
+    );
+    println!(
+        "  {:12} {:40} {:10} Active",
+        "wasm", "WebAssembly linear memory (typed-wasm)", "10"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned (via VQL-UT)",
+        "vql", "VeriSimDB", "10"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned",
+        "kql", "Azure Data Explorer / Kusto", "4"
+    );
+    println!(
+        "  {:12} {:40} {:10} Planned",
+        "gql", "ISO GQL databases", "4"
+    );
+    println!("  {:12} {:40} {:10} Planned", "fqldt", "Lithoglyph", "10");
+    println!(
+        "  {:12} {:40} {:10} Plugin API",
+        "custom", "User-defined grammar", "var"
+    );
 }

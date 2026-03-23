@@ -4,9 +4,9 @@
 // Type-checking engine for TypedQLiser.
 // Uses the plugin system to delegate language-specific checks.
 
-use anyhow::{Context, Result};
 use crate::manifest::Manifest;
 use crate::plugins::{self, Schema};
+use anyhow::{Context, Result};
 
 /// Result of type-checking a single query.
 #[derive(Debug, Clone)]
@@ -54,7 +54,10 @@ static LEVEL_NAMES: [&str; 10] = [
 fn load_schema(manifest: &Manifest) -> Result<Option<Schema>> {
     match manifest.typedql.schema_source.as_str() {
         "file" => {
-            let path = manifest.database.schema_file.as_ref()
+            let path = manifest
+                .database
+                .schema_file
+                .as_ref()
                 .context("schema-source is 'file' but database.schema-file not set")?;
             let content = std::fs::read_to_string(path)
                 .with_context(|| format!("Failed to read schema file: {}", path))?;
@@ -64,7 +67,9 @@ fn load_schema(manifest: &Manifest) -> Result<Option<Schema>> {
         }
         "introspect" => {
             // TODO: connect to database and introspect schema
-            eprintln!("Warning: schema introspection not yet implemented. Use schema-source = \"file\" with a schema JSON file.");
+            eprintln!(
+                "Warning: schema introspection not yet implemented. Use schema-source = \"file\" with a schema JSON file."
+            );
             Ok(None)
         }
         "none" => Ok(None),
@@ -73,7 +78,11 @@ fn load_schema(manifest: &Manifest) -> Result<Option<Schema>> {
 }
 
 /// Check queries against type safety levels using the appropriate language plugin.
-pub fn check_queries(manifest: &Manifest, single_query: Option<&str>, _proofs: bool) -> Result<Vec<CheckResult>> {
+pub fn check_queries(
+    manifest: &Manifest,
+    single_query: Option<&str>,
+    _proofs: bool,
+) -> Result<Vec<CheckResult>> {
     let plugin = plugins::get_plugin(&manifest.typedql.language)?;
     let schema = load_schema(manifest)?;
     let mut results = Vec::new();
@@ -120,19 +129,20 @@ fn check_single_query(
         // Skip if configured to skip, or if a previous level failed
         if manifest.levels.skip.contains(&level) || stop {
             level_results.push(LevelResult {
-                level, name, status: LevelStatus::Skipped, messages: vec![],
+                level,
+                name,
+                status: LevelStatus::Skipped,
+                messages: vec![],
             });
             continue;
         }
 
         let (status, messages) = match level {
             // Level 1: Parse-time safety
-            1 => {
-                match plugin.parse_check(query) {
-                    Ok(()) => (LevelStatus::Passed, vec![]),
-                    Err(e) => (LevelStatus::Failed, vec![format!("{}", e)]),
-                }
-            }
+            1 => match plugin.parse_check(query) {
+                Ok(()) => (LevelStatus::Passed, vec![]),
+                Err(e) => (LevelStatus::Failed, vec![format!("{}", e)]),
+            },
 
             // Level 2: Schema-binding safety
             2 => {
@@ -140,7 +150,8 @@ fn check_single_query(
                     match plugin.schema_check(query, s) {
                         Ok(issues) if issues.is_empty() => (LevelStatus::Passed, vec![]),
                         Ok(issues) => {
-                            let msgs: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+                            let msgs: Vec<String> =
+                                issues.iter().map(|i| i.message.clone()).collect();
                             (LevelStatus::Failed, msgs)
                         }
                         Err(e) => (LevelStatus::Failed, vec![format!("{}", e)]),
@@ -156,7 +167,8 @@ fn check_single_query(
                     match plugin.type_check(query, s) {
                         Ok(issues) if issues.is_empty() => (LevelStatus::Passed, vec![]),
                         Ok(issues) => {
-                            let msgs: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+                            let msgs: Vec<String> =
+                                issues.iter().map(|i| i.message.clone()).collect();
                             (LevelStatus::Failed, msgs)
                         }
                         Err(e) => (LevelStatus::Failed, vec![format!("{}", e)]),
@@ -172,7 +184,8 @@ fn check_single_query(
                     match plugin.null_check(query, s) {
                         Ok(issues) if issues.is_empty() => (LevelStatus::Passed, vec![]),
                         Ok(issues) => {
-                            let msgs: Vec<String> = issues.iter().map(|i| i.message.clone()).collect();
+                            let msgs: Vec<String> =
+                                issues.iter().map(|i| i.message.clone()).collect();
                             // Null issues are warnings at level 4, not hard failures
                             if manifest.levels.enforce.contains(&4) {
                                 (LevelStatus::Failed, msgs)
@@ -192,10 +205,18 @@ fn check_single_query(
                 // Check for string interpolation patterns that suggest injection risk.
                 // A query with $1, $2 (parameterised) is safe. A query with concatenation is not.
                 // For MVP: pass if query contains parameter placeholders, warn if it contains quotes around variables.
-                let has_params = query.contains("$1") || query.contains("?") || query.contains(":param");
-                let has_concat = query.contains("' +") || query.contains("' ||") || query.contains("format!");
+                let has_params =
+                    query.contains("$1") || query.contains("?") || query.contains(":param");
+                let has_concat =
+                    query.contains("' +") || query.contains("' ||") || query.contains("format!");
                 if has_concat {
-                    (LevelStatus::Failed, vec!["Query appears to use string concatenation — injection risk".to_string()])
+                    (
+                        LevelStatus::Failed,
+                        vec![
+                            "Query appears to use string concatenation — injection risk"
+                                .to_string(),
+                        ],
+                    )
                 } else if has_params || !query.contains('\'') {
                     (LevelStatus::Passed, vec![])
                 } else {
@@ -204,7 +225,10 @@ fn check_single_query(
             }
 
             // Levels 6-10: not yet implemented
-            _ => (LevelStatus::Skipped, vec!["Not yet implemented".to_string()]),
+            _ => (
+                LevelStatus::Skipped,
+                vec!["Not yet implemented".to_string()],
+            ),
         };
 
         if status == LevelStatus::Failed && manifest.levels.enforce.contains(&level) {
@@ -215,7 +239,12 @@ fn check_single_query(
             max_level = level;
         }
 
-        level_results.push(LevelResult { level, name, status, messages });
+        level_results.push(LevelResult {
+            level,
+            name,
+            status,
+            messages,
+        });
     }
 
     // Truncate query for display
@@ -240,9 +269,16 @@ pub fn report_results(results: &[CheckResult], manifest: &Manifest, ci: bool) ->
     for result in results {
         let target = manifest.typedql.level;
         let achieved = result.level_achieved;
-        let status_str = if achieved >= target { "\x1b[32mPASS\x1b[0m" } else { "\x1b[31mFAIL\x1b[0m" };
+        let status_str = if achieved >= target {
+            "\x1b[32mPASS\x1b[0m"
+        } else {
+            "\x1b[31mFAIL\x1b[0m"
+        };
 
-        println!("{} [L{}/{}] {}", status_str, achieved, target, result.location);
+        println!(
+            "{} [L{}/{}] {}",
+            status_str, achieved, target, result.location
+        );
 
         if achieved < target {
             errors += 1;
@@ -264,8 +300,12 @@ pub fn report_results(results: &[CheckResult], manifest: &Manifest, ci: bool) ->
         }
     }
 
-    println!("\n{} queries checked, {} passed, {} failed",
-        results.len(), results.len() as u32 - errors, errors);
+    println!(
+        "\n{} queries checked, {} passed, {} failed",
+        results.len(),
+        results.len() as u32 - errors,
+        errors
+    );
 
     if ci && errors > 0 {
         std::process::exit(1);
