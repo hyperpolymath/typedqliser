@@ -10,7 +10,7 @@ Jonathan D.A. Jewell <j.d.a.jewell@open.ac.uk>
 == What Is This?
 
 TypedQLiser adds **formal type safety** to any query language — SQL, GraphQL,
-Cypher, SPARQL, KQL, VQL, or anything else — without modifying the database.
+Cypher, SPARQL, KQL, VCL, or anything else — without modifying the database.
 
 It sits in front of your database as a compile-time type checker. Queries go in,
 TypedQLiser proves properties about them (no nulls where you don't expect them,
@@ -29,14 +29,14 @@ Every database has a query language. None of them have deep type safety:
 * **GraphQL**: Schema types exist but no dependent types, no linearity, no effects
 * **Cypher**: Pattern matching with no formal verification
 * **SPARQL**: RDF types are stringly-typed at best
-* **VQL**: VeriSimDB's query language has VQL-DT/VQL-UT extensions, but they're VQL-specific
+* **VCL**: VeriSimDB's query language has VCL-DT/VCL-total extensions, but they're VCL-specific
 
 TypedQLiser makes the type safety **portable across all query languages**.
 
 == The 10 Type Safety Levels
 
 Derived from https://github.com/hyperpolymath/typell[TypeLL]'s type theory
-and https://github.com/hyperpolymath/vql-ut[VQL-UT]'s 10-level hierarchy:
+and https://github.com/hyperpolymath/vql-ut[VCL-total]'s 10-level hierarchy:
 
 === Established (Levels 1-6)
 
@@ -113,7 +113,7 @@ TypedQLiser uses a plugin architecture. Each query language gets a parser plugin
 | **GraphQL** | Any GraphQL API | 6 | Priority
 | **Cypher** | Neo4j, Memgraph, AGE | 4 | Planned
 | **SPARQL** | Any RDF triplestore | 4 | Planned
-| **VQL** | VeriSimDB | 10 | Planned (via VQL-UT)
+| **VCL** | VeriSimDB | 10 | Planned (via VCL-total)
 | **KQL** | Azure Data Explorer, Kusto | 4 | Planned
 | **GQL** | ISO GQL databases | 4 | Planned
 | **FQLDT** | Lithoglyph | 10 | Planned (dependent types native)
@@ -233,13 +233,13 @@ typedqliser check --ci
 typedqliser info
 ----
 
-== Relationship to TypeLL, VQL-UT, and the -iser Family
+== Relationship to TypeLL, VCL-total, and the -iser Family
 
 * **TypeLL** provides the type theory (10 levels, type kernel, verification protocol)
-* **VQL-UT** applies those levels specifically to VeriSimDB's VQL
+* **VCL-total** applies those levels specifically to VeriSimDB's VCL
 * **TypedQLiser** makes them portable to *any* query language
 * TypedQLiser's Idris2 kernel can use TypeLL as a shared dependency
-* VQL-UT becomes the VQL plugin within TypedQLiser
+* VCL-total becomes the VCL plugin within TypedQLiser
 
 == Status
 

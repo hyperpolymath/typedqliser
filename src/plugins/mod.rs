@@ -128,8 +128,8 @@ pub fn print_languages() {
         "wasm", "WebAssembly linear memory (typed-wasm)", "10"
     );
     println!(
-        "  {:12} {:40} {:10} Planned (via VQL-UT)",
-        "vql", "VeriSimDB", "10"
+        "  {:12} {:40} {:10} Planned (via VCL-total)",
+        "vcl", "VeriSimDB", "10"
     );
     println!(
         "  {:12} {:40} {:10} Planned",

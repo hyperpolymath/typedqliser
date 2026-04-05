@@ -35,7 +35,7 @@
 
 ## Priority
 
-**MEDIUM** — Code generator correctness is important but downstream of VQL-UT and TypeLL. Focus proofs on SQL generation first as it directly affects data integrity.
+**MEDIUM** — Code generator correctness is important but downstream of VCL-total and TypeLL. Focus proofs on SQL generation first as it directly affects data integrity.
 
 ## Template ABI Cleanup (2026-03-29)
 
