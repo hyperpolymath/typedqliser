@@ -2,6 +2,8 @@
 # typedqliser — Formal type safety (10 levels) for any query language
 
 # Default: build and test
+import? "contractile.just"
+
 default: build test
 
 # Build release binary
