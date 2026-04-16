@@ -467,7 +467,7 @@ mod tests {
         let program = "region R { x: i32; y: f64 } [10]\nregion.get R[0] .x";
         let issues = plugin
             .schema_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert!(issues.is_empty(), "Valid access should have no issues");
     }
 
@@ -477,7 +477,7 @@ mod tests {
         let program = "region R { x: i32 } [10]\nregion.get R[0] .y";
         let issues = plugin
             .schema_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert_eq!(issues.len(), 1);
         assert!(issues[0].message.contains("not found"));
     }
@@ -488,7 +488,7 @@ mod tests {
         let program = "region R { x: i32 } [5]\nregion.get R[10] .x";
         let issues = plugin
             .schema_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert!(issues.iter().any(|i| i.message.contains("out of bounds")));
     }
 
@@ -498,7 +498,7 @@ mod tests {
         let program = "region R { x: i32; y: f64 } [10]";
         let issues = plugin
             .type_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert!(issues.is_empty());
     }
 
@@ -508,7 +508,7 @@ mod tests {
         let program = "region R { x: string } [10]";
         let issues = plugin
             .type_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert_eq!(issues.len(), 1);
         assert!(issues[0].message.contains("Unknown type"));
     }
@@ -519,7 +519,7 @@ mod tests {
         let program = "region R { x: nullable i32 } [10]\nregion.get R[0] .x";
         let issues = plugin
             .null_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert_eq!(issues.len(), 1);
         assert!(issues[0].message.contains("nullable"));
     }
@@ -531,7 +531,7 @@ mod tests {
             "module A export region Shared { x: i32 }\nmodule B import region Shared { x: f64 }";
         let issues = plugin
             .schema_check(program, &Schema { tables: vec![] })
-            .unwrap();
+            .expect("TODO: handle error");
         assert!(
             issues
                 .iter()
