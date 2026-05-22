@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: PMPL-1.0-or-later
+# SPDX-License-Identifier: MPL-2.0
 # typedqliser — Formal type safety (10 levels) for any query language
 
 # Default: build and test
