@@ -27,6 +27,11 @@ Thumbs.db
 # Rust
 # Cargo.lock  # Keep for binaries
 
+# Zig (FFI build artifacts from `zig build`)
+zig-out/
+.zig-cache/
+zig-cache/
+
 # Elixir
 /cover/
 /doc/
