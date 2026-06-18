@@ -1,7 +1,7 @@
-// TypedQLiser Integration Tests
 // SPDX-License-Identifier: MPL-2.0
+// TypedQLiser Integration Tests
 //
-// These tests verify that the Zig FFI correctly implements the Idris2 ABI
+// These tests exercise the Zig FFI's C-ABI surface.
 
 const std = @import("std");
 const testing = std.testing;

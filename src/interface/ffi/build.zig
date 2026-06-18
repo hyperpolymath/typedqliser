@@ -31,13 +31,6 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(lib);
     b.installArtifact(lib_static);
 
-    // Generate header file for C compatibility
-    const header = b.addInstallHeader(
-        b.path("include/typedqliser.h"),
-        "typedqliser.h",
-    );
-    b.getInstallStep().dependOn(&header.step);
-
     // Unit tests
     const lib_tests = b.addTest(.{
         .root_source_file = b.path("src/main.zig"),
