@@ -159,14 +159,16 @@ skip = [9, 10]
 
 == Architecture
 
-=== Idris2 Type Kernel (`src/abi/`)
+=== Level model — proof obligations (`src/codegen`, `src/plugins`)
 
-The core of TypedQLiser is an Idris2 type kernel that encodes the 10 levels
-as dependent types. Each level is a *proof obligation* — the kernel either
-constructs a proof term (query is safe at that level) or produces a
-counterexample (here's how it could fail).
+The 10 safety levels are specified as *proof obligations*: for each level the
+checker either accepts the query (safe at that level) or produces a
+counterexample (how it could fail). These obligations are the design target for
+a future Idris2 dependent-type kernel; **today they are enforced operationally
+in Rust** (`src/codegen` + the language plugins), not yet mechanised in Idris2.
+`src/abi/` holds the Rust ABI types.
 
-Key proofs:
+Proof obligations (one per level):
 * **ParseSafe**: `parse(q) = Right ast` (total parser, no panics)
 * **SchemaBound**: `∀ ref ∈ ast. ref ∈ schema` (all references resolve)
 * **TypeCompat**: `∀ op ∈ ast. types(op.lhs) ≡ types(op.rhs)` (no type mismatches)
@@ -178,10 +180,11 @@ Key proofs:
 * **TemporalSafe**: `valid_at(q, now()) = True` (time-dependent predicates hold)
 * **LinearSafe**: `consumed(resources(q)) = exactly_once` (no leaks, no double-use)
 
-=== Zig FFI (`ffi/zig/`)
+=== Zig FFI (`src/interface/ffi/`)
 
-C-ABI bridge between the Idris2 type kernel and the Rust CLI.
-Handles proof serialisation and AST marshalling.
+C-ABI bridge exposing TypedQLiser to other languages (build + unit tests
+machine-checked in CI via `provable.yml`). The C header and proof-serialisation
+marshalling are still being filled in.
 
 === Plugin Architecture (`src/plugins/`)
 
@@ -243,8 +246,11 @@ typedqliser info
 
 == Status
 
-**Pre-alpha.** Architecture defined, plugin trait designed, Idris2 proof
-obligations specified. SQL and GraphQL plugins are priority implementations.
+**Pre-alpha.** The Rust type-checker is real and tested (116 tests); the SQL
+plugin enforces levels 1–5 — see the blog-api example, machine-checked in CI via
+`provable.yml` (valid SQL accepted, invalid SQL rejected). The Idris2
+dependent-type kernel is *specified but not yet implemented* — levels are
+currently enforced in Rust. GraphQL and further plugins are next.
 
 This is the **#1 priority** -iser project.
 
