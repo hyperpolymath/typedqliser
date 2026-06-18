@@ -1,4 +1,4 @@
-// {{PROJECT}} FFI Build Configuration
+// TypedQLiser FFI Build Configuration
 // SPDX-License-Identifier: MPL-2.0
 
 const std = @import("std");
@@ -7,24 +7,25 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    // Shared library (.so, .dylib, .dll)
+    // Shared library (.so, .dylib, .dll).
+    // No explicit `.version` — a versioned shared library trips a null deref in
+    // Zig 0.14's InstallArtifact (major_only_filename).
     const lib = b.addSharedLibrary(.{
-        .name = "{{project}}",
+        .name = "typedqliser",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-
-    // Set version
-    lib.version = .{ .major = 0, .minor = 1, .patch = 0 };
+    lib.linkLibC(); // main.zig uses std.heap.c_allocator
 
     // Static library (.a)
     const lib_static = b.addStaticLibrary(.{
-        .name = "{{project}}",
+        .name = "typedqliser",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+    lib_static.linkLibC();
 
     // Install artifacts
     b.installArtifact(lib);
@@ -32,8 +33,8 @@ pub fn build(b: *std.Build) void {
 
     // Generate header file for C compatibility
     const header = b.addInstallHeader(
-        b.path("include/{{project}}.h"),
-        "{{project}}.h",
+        b.path("include/typedqliser.h"),
+        "typedqliser.h",
     );
     b.getInstallStep().dependOn(&header.step);
 
@@ -43,6 +44,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    lib_tests.linkLibC();
 
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
@@ -55,7 +57,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
+    integration_tests.linkLibC();
     integration_tests.linkLibrary(lib);
 
     const run_integration_tests = b.addRunArtifact(integration_tests);
@@ -69,6 +71,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = .Debug,
     });
+    docs.linkLibC();
 
     const docs_step = b.step("docs", "Generate documentation");
     docs_step.dependOn(&b.addInstallDirectory(.{
@@ -79,12 +82,12 @@ pub fn build(b: *std.Build) void {
 
     // Benchmark (if needed)
     const bench = b.addExecutable(.{
-        .name = "{{project}}-bench",
+        .name = "typedqliser-bench",
         .root_source_file = b.path("bench/bench.zig"),
         .target = target,
         .optimize = .ReleaseFast,
     });
-
+    bench.linkLibC();
     bench.linkLibrary(lib);
 
     const run_bench = b.addRunArtifact(bench);
