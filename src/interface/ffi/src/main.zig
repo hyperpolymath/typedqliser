@@ -35,8 +35,9 @@ pub const Result = enum(c_int) {
     null_pointer = 4,
 };
 
-/// Library handle (opaque to prevent direct access)
-pub const Handle = opaque {
+/// Library handle — a struct internally; C only ever sees `*Handle` as an
+/// opaque pointer (its fields are never exposed in the header).
+pub const Handle = struct {
     // Internal state hidden from C
     allocator: std.mem.Allocator,
     initialized: bool,
