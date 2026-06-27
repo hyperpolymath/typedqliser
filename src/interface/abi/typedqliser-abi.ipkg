@@ -10,3 +10,4 @@ modules = Typedqliser.ABI.Types
         , Typedqliser.ABI.Foreign
         , Typedqliser.ABI.Proofs
         , Typedqliser.ABI.Semantics
+        , Typedqliser.ABI.SchemaBound
