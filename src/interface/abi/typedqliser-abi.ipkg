@@ -11,3 +11,4 @@ modules = Typedqliser.ABI.Types
         , Typedqliser.ABI.Proofs
         , Typedqliser.ABI.Semantics
         , Typedqliser.ABI.SchemaBound
+        , Typedqliser.ABI.TypeCompat
