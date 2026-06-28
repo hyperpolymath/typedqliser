@@ -22,7 +22,10 @@ const CORPUS: &[(&str, &str)] = &[
     // 0 — simple valid select
     ("simple_select", "SELECT 1"),
     // 1 — select from known table (requires schema)
-    ("select_known", "SELECT id, username FROM accounts WHERE id = 1"),
+    (
+        "select_known",
+        "SELECT id, username FROM accounts WHERE id = 1",
+    ),
     // 2 — invalid syntax
     ("invalid_syntax", "NOT SQL AT ALL @@@ !!!"),
     // 3 — type mismatch: integer vs string
@@ -45,7 +48,10 @@ const CORPUS: &[(&str, &str)] = &[
         "SELECT id FROM accounts WHERE id IN (SELECT account_id FROM transactions)",
     ),
     // 9 — aggregate
-    ("aggregate", "SELECT account_id, COUNT(*) FROM transactions GROUP BY account_id"),
+    (
+        "aggregate",
+        "SELECT account_id, COUNT(*) FROM transactions GROUP BY account_id",
+    ),
 ];
 
 // ---------------------------------------------------------------------------
@@ -333,7 +339,7 @@ fn property_no_panic_on_full_corpus() {
             // We cannot move plugin/s into catch_unwind easily, so we just
             // verify the calls succeed outside of catch_unwind — if they
             // panic, the test fails.
-            drop(label);
+            let _ = label;
         });
         let _ = plugin.schema_check(query, &s);
         let _ = plugin.type_check(query, &s);
