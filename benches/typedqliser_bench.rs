@@ -8,7 +8,7 @@
 //!   - `schema_check` and `type_check` overhead per query size.
 //!   - Plugin creation cost.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use typedqliser::plugins::{ColumnDef, Schema, TableDef, get_plugin};
 
 // ---------------------------------------------------------------------------
@@ -19,8 +19,7 @@ use typedqliser::plugins::{ColumnDef, Schema, TableDef, get_plugin};
 const SMALL_QUERY: &str = "SELECT id FROM accounts WHERE id = 1";
 
 /// Medium query (~180 bytes) — a two-table JOIN with a WHERE clause.
-const MEDIUM_QUERY: &str =
-    "SELECT accounts.id, accounts.username, transactions.amount \
+const MEDIUM_QUERY: &str = "SELECT accounts.id, accounts.username, transactions.amount \
      FROM accounts \
      INNER JOIN transactions ON accounts.id = transactions.account_id \
      WHERE accounts.id > 10 AND transactions.amount > 0 \
@@ -28,8 +27,7 @@ const MEDIUM_QUERY: &str =
      LIMIT 50";
 
 /// Large query (~400 bytes) — a CTE + subquery + GROUP BY.
-const LARGE_QUERY: &str =
-    "WITH high_value AS ( \
+const LARGE_QUERY: &str = "WITH high_value AS ( \
        SELECT account_id, SUM(amount) AS total \
        FROM transactions \
        WHERE amount > 100 \

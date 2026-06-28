@@ -137,10 +137,7 @@ fn e2e_unknown_table_fails_at_l2() {
 
     assert!(plugin.parse_check(query).is_ok(), "L1 must pass");
     let l2 = plugin.schema_check(query, &s).unwrap();
-    assert!(
-        !l2.is_empty(),
-        "E2E: unknown table must produce L2 issues"
-    );
+    assert!(!l2.is_empty(), "E2E: unknown table must produce L2 issues");
     assert!(
         l2.iter().any(|i| i.message.contains("ghost_table")),
         "L2 issue must mention the missing table name"
@@ -307,7 +304,10 @@ fn e2e_cte_parses_at_l1() {
     let plugin = get_plugin("sql").unwrap();
     let query = "WITH top_accounts AS (SELECT id FROM accounts WHERE balance > 100) \
                  SELECT id FROM top_accounts";
-    assert!(plugin.parse_check(query).is_ok(), "E2E: CTE must parse at L1");
+    assert!(
+        plugin.parse_check(query).is_ok(),
+        "E2E: CTE must parse at L1"
+    );
 }
 
 // ---------------------------------------------------------------------------
