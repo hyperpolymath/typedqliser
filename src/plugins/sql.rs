@@ -159,19 +159,133 @@ impl SqlPlugin {
             .unwrap_or_else(|| qualifier.to_string())
     }
 
-    /// Names introduced by a `WITH` clause. These act as table sources within
-    /// the query but are not part of the schema, so they must not be flagged as
-    /// "table not found".
-    fn extract_cte_names(statement: &Statement) -> Vec<String> {
-        let mut names = Vec::new();
-        if let Statement::Query(query) = statement
-            && let Some(with) = &query.with
-        {
+    /// Recursively collect every real table referenced anywhere in the
+    /// statement — top level, JOINs, CTE bodies, derived tables, and subqueries
+    /// in `WHERE`/`HAVING`/projection — alongside the "non-schema" sources that
+    /// must not be validated against the schema (CTE names and derived-table
+    /// aliases). Lets L2 catch a missing table inside a subquery, not just the
+    /// outermost `FROM`.
+    fn extract_all_table_sources(statement: &Statement) -> (Vec<String>, Vec<String>) {
+        let mut real = Vec::new();
+        let mut nonschema = Vec::new();
+        match statement {
+            Statement::Query(query) => Self::walk_query(query, &mut real, &mut nonschema),
+            Statement::Insert(insert) => {
+                real.push(insert.table_name.to_string().to_lowercase());
+                if let Some(source) = &insert.source {
+                    Self::walk_query(source, &mut real, &mut nonschema);
+                }
+            }
+            Statement::Update { table, .. } => Self::walk_twj(table, &mut real, &mut nonschema),
+            Statement::Delete(delete) => match &delete.from {
+                sqlparser::ast::FromTable::WithFromKeyword(twjs)
+                | sqlparser::ast::FromTable::WithoutKeyword(twjs) => {
+                    for twj in twjs {
+                        Self::walk_twj(twj, &mut real, &mut nonschema);
+                    }
+                }
+            },
+            _ => {}
+        }
+        real.sort();
+        real.dedup();
+        (real, nonschema)
+    }
+
+    fn walk_query(query: &Query, real: &mut Vec<String>, nonschema: &mut Vec<String>) {
+        if let Some(with) = &query.with {
             for cte in &with.cte_tables {
-                names.push(cte.alias.name.value.to_lowercase());
+                nonschema.push(cte.alias.name.value.to_lowercase());
+                Self::walk_query(&cte.query, real, nonschema);
             }
         }
-        names
+        Self::walk_setexpr(query.body.as_ref(), real, nonschema);
+    }
+
+    fn walk_setexpr(set: &SetExpr, real: &mut Vec<String>, nonschema: &mut Vec<String>) {
+        match set {
+            SetExpr::Select(select) => {
+                for twj in &select.from {
+                    Self::walk_twj(twj, real, nonschema);
+                }
+                if let Some(sel) = &select.selection {
+                    Self::walk_expr_subqueries(sel, real, nonschema);
+                }
+                for item in &select.projection {
+                    if let SelectItem::UnnamedExpr(e) | SelectItem::ExprWithAlias { expr: e, .. } =
+                        item
+                    {
+                        Self::walk_expr_subqueries(e, real, nonschema);
+                    }
+                }
+            }
+            SetExpr::Query(q) => Self::walk_query(q, real, nonschema),
+            SetExpr::SetOperation { left, right, .. } => {
+                Self::walk_setexpr(left, real, nonschema);
+                Self::walk_setexpr(right, real, nonschema);
+            }
+            _ => {}
+        }
+    }
+
+    fn walk_twj(twj: &TableWithJoins, real: &mut Vec<String>, nonschema: &mut Vec<String>) {
+        Self::walk_factor(&twj.relation, real, nonschema);
+        for join in &twj.joins {
+            Self::walk_factor(&join.relation, real, nonschema);
+        }
+    }
+
+    fn walk_factor(factor: &TableFactor, real: &mut Vec<String>, nonschema: &mut Vec<String>) {
+        match factor {
+            TableFactor::Table { name, .. } => real.push(name.to_string().to_lowercase()),
+            TableFactor::Derived {
+                subquery, alias, ..
+            } => {
+                if let Some(a) = alias {
+                    nonschema.push(a.name.value.to_lowercase());
+                }
+                Self::walk_query(subquery, real, nonschema);
+            }
+            TableFactor::NestedJoin {
+                table_with_joins, ..
+            } => Self::walk_twj(table_with_joins, real, nonschema),
+            _ => {}
+        }
+    }
+
+    /// Descend an expression to find nested subqueries (we only need their
+    /// table sources here, not their columns).
+    fn walk_expr_subqueries(expr: &Expr, real: &mut Vec<String>, nonschema: &mut Vec<String>) {
+        match expr {
+            Expr::Subquery(q) | Expr::Exists { subquery: q, .. } => {
+                Self::walk_query(q, real, nonschema)
+            }
+            Expr::InSubquery {
+                expr: inner,
+                subquery,
+                ..
+            } => {
+                Self::walk_expr_subqueries(inner, real, nonschema);
+                Self::walk_query(subquery, real, nonschema);
+            }
+            Expr::InList {
+                expr: inner, list, ..
+            } => {
+                Self::walk_expr_subqueries(inner, real, nonschema);
+                for e in list {
+                    Self::walk_expr_subqueries(e, real, nonschema);
+                }
+            }
+            Expr::BinaryOp { left, right, .. } => {
+                Self::walk_expr_subqueries(left, real, nonschema);
+                Self::walk_expr_subqueries(right, real, nonschema);
+            }
+            Expr::Nested(e)
+            | Expr::IsNull(e)
+            | Expr::IsNotNull(e)
+            | Expr::UnaryOp { expr: e, .. } => Self::walk_expr_subqueries(e, real, nonschema),
+            _ => {}
+        }
     }
 
     /// Extract all column references from a statement.
@@ -401,9 +515,12 @@ impl QueryLanguagePlugin for SqlPlugin {
             // Check table references
             let table_refs = Self::extract_table_refs(stmt);
             let aliases = Self::extract_table_aliases(stmt);
-            let cte_names = Self::extract_cte_names(stmt);
-            for table_name in &table_refs {
-                if !cte_names.contains(table_name)
+            // Validate table existence across every scope (including subqueries
+            // and derived tables), excluding non-schema sources (CTE names and
+            // derived-table aliases).
+            let (all_tables, nonschema_sources) = Self::extract_all_table_sources(stmt);
+            for table_name in &all_tables {
+                if !nonschema_sources.contains(table_name)
                     && !schema.tables.iter().any(|t| t.name == *table_name)
                 {
                     issues.push(SchemaIssue {

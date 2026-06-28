@@ -653,6 +653,69 @@ fn l2_cte_name_not_flagged_as_missing_table() {
     );
 }
 
+#[test]
+fn l2_subquery_missing_table_flagged() {
+    // A missing table inside a `WHERE ... IN (SELECT ...)` subquery must be
+    // caught, not only the outermost FROM.
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .schema_check(
+            "SELECT id FROM users WHERE id IN (SELECT user_id FROM nonexistent_table)",
+            &schema,
+        )
+        .unwrap();
+    assert!(
+        issues
+            .iter()
+            .any(|i| i.message.contains("nonexistent_table")),
+        "Missing table inside a subquery must be flagged. Got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn l2_valid_subquery_no_false_positive() {
+    // Both the outer and the subquery tables exist, so no table-binding issue.
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .schema_check(
+            "SELECT id FROM users WHERE id IN (SELECT user_id FROM posts)",
+            &schema,
+        )
+        .unwrap();
+    assert!(
+        !issues.iter().any(|i| i.message.contains("not found")),
+        "Valid subquery over existing tables must not raise a binding issue. Got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn l2_derived_table_validated() {
+    // A derived table's inner FROM is validated (bogus_table flagged), while
+    // the derived-table alias `sub` is a non-schema source and is not flagged.
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .schema_check(
+            "SELECT sub.x FROM (SELECT id FROM bogus_table) sub",
+            &schema,
+        )
+        .unwrap();
+    assert!(
+        issues.iter().any(|i| i.message.contains("bogus_table")),
+        "Missing table inside a derived table must be flagged. Got: {:?}",
+        issues
+    );
+    assert!(
+        !issues.iter().any(|i| i.message.contains("'sub'")),
+        "Derived-table alias 'sub' must not be flagged as a missing table. Got: {:?}",
+        issues
+    );
+}
+
 // ============================================================================
 // End-to-end: Full query -> manifest -> check pipeline
 // ============================================================================
