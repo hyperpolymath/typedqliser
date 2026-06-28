@@ -302,9 +302,60 @@ fn l2_valid_multi_table_join() {
             &schema,
         )
         .unwrap();
-    // Qualified columns use alias (u, p) which don't match schema table names directly.
-    // This is expected — aliases need separate resolution logic.
-    let _ = issues;
+    // Aliases `u`/`p` resolve to `users`/`posts`; every column exists, so a
+    // valid aliased join must produce no schema-binding issues.
+    assert!(
+        issues.is_empty(),
+        "Aliased join over existing columns must pass L2. Got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn l2_alias_resolves_unknown_column() {
+    // The alias resolves to a real table, so a genuinely missing column on the
+    // aliased table is still caught (no false negative from alias resolution).
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .schema_check("SELECT u.nonexistent FROM users u", &schema)
+        .unwrap();
+    assert!(
+        issues.iter().any(|i| i.message.contains("nonexistent")),
+        "Missing column on an aliased table must be flagged. Got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn l3_type_check_resolves_alias() {
+    // `u.name` (text) compared to a numeric literal must be caught even though
+    // the column is referenced through the alias `u`.
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .type_check("SELECT u.id FROM users u WHERE u.name = 42", &schema)
+        .unwrap();
+    assert!(
+        !issues.is_empty(),
+        "Type mismatch on an alias-qualified column must be flagged"
+    );
+}
+
+#[test]
+fn l4_null_check_resolves_alias() {
+    // `u.email` is nullable; selecting it through the alias `u` without null
+    // handling must still raise a null-safety issue.
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .null_check("SELECT u.email FROM users u", &schema)
+        .unwrap();
+    assert!(
+        issues.iter().any(|i| i.column == "email"),
+        "Nullable alias-qualified column must be flagged at L4. Got: {:?}",
+        issues
+    );
 }
 
 #[test]
