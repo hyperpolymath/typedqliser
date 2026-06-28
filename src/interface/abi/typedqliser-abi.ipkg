@@ -13,3 +13,4 @@ modules = Typedqliser.ABI.Types
         , Typedqliser.ABI.SchemaBound
         , Typedqliser.ABI.TypeCompat
         , Typedqliser.ABI.Invariants
+        , Typedqliser.ABI.FfiSeam
