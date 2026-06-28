@@ -608,17 +608,48 @@ fn l4_nullable_comment_author() {
 }
 
 #[test]
-fn l4_select_star_not_flagged() {
-    // SELECT * doesn't produce individual Identifier expressions for each column,
-    // so the null checker won't flag individual columns.
+fn l4_select_star_flags_nullable() {
+    // `SELECT *` is expanded to the table's columns, so its nullable columns
+    // (users.email, users.age) are flagged like an explicit selection would be.
     let plugin = get_plugin("sql").unwrap();
     let schema = test_schema();
     let issues = plugin.null_check("SELECT * FROM users", &schema).unwrap();
-    // The current implementation only checks UnnamedExpr(Identifier), not Wildcard.
-    // This test documents current behavior.
     assert!(
-        issues.is_empty(),
-        "SELECT * is not individually checked for null (current behavior)"
+        issues.iter().any(|i| i.column == "email"),
+        "SELECT * must flag nullable 'email'. Got: {:?}",
+        issues
+    );
+    assert!(
+        issues.iter().any(|i| i.column == "age"),
+        "SELECT * must flag nullable 'age'. Got: {:?}",
+        issues
+    );
+    // Non-nullable columns (id, name) must NOT be flagged.
+    assert!(
+        !issues
+            .iter()
+            .any(|i| i.column == "id" || i.column == "name"),
+        "SELECT * must not flag non-nullable columns. Got: {:?}",
+        issues
+    );
+}
+
+#[test]
+fn l2_cte_name_not_flagged_as_missing_table() {
+    // A CTE name is a valid in-query table source, not a schema table, so it
+    // must not be reported as "not found in schema".
+    let plugin = get_plugin("sql").unwrap();
+    let schema = test_schema();
+    let issues = plugin
+        .schema_check(
+            "WITH recent AS (SELECT id FROM users) SELECT id FROM recent",
+            &schema,
+        )
+        .unwrap();
+    assert!(
+        !issues.iter().any(|i| i.message.contains("recent")),
+        "CTE name 'recent' must not be flagged as a missing table. Got: {:?}",
+        issues
     );
 }
 
