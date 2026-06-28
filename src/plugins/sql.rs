@@ -205,18 +205,17 @@ impl SqlPlugin {
                 | BinaryOperator::Lt
                 | BinaryOperator::LtEq
                 | BinaryOperator::Gt
-                | BinaryOperator::GtEq => {
+                | BinaryOperator::GtEq
                     if lt_cat != rt_cat
                         && lt_cat != TypeCategory::Unknown
-                        && rt_cat != TypeCategory::Unknown
-                    {
-                        issues.push(TypeIssue {
-                            message: format!(
-                                "Comparing incompatible types: {} ({:?}) vs {} ({:?})",
-                                lt, lt_cat, rt, rt_cat
-                            ),
-                        });
-                    }
+                        && rt_cat != TypeCategory::Unknown =>
+                {
+                    issues.push(TypeIssue {
+                        message: format!(
+                            "Comparing incompatible types: {} ({:?}) vs {} ({:?})",
+                            lt, lt_cat, rt, rt_cat
+                        ),
+                    });
                 }
                 _ => {}
             }
