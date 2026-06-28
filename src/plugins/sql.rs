@@ -159,6 +159,21 @@ impl SqlPlugin {
             .unwrap_or_else(|| qualifier.to_string())
     }
 
+    /// Names introduced by a `WITH` clause. These act as table sources within
+    /// the query but are not part of the schema, so they must not be flagged as
+    /// "table not found".
+    fn extract_cte_names(statement: &Statement) -> Vec<String> {
+        let mut names = Vec::new();
+        if let Statement::Query(query) = statement
+            && let Some(with) = &query.with
+        {
+            for cte in &with.cte_tables {
+                names.push(cte.alias.name.value.to_lowercase());
+            }
+        }
+        names
+    }
+
     /// Extract all column references from a statement.
     fn extract_column_refs(statement: &Statement) -> Vec<(Option<String>, String)> {
         let mut cols = Vec::new();
@@ -386,8 +401,11 @@ impl QueryLanguagePlugin for SqlPlugin {
             // Check table references
             let table_refs = Self::extract_table_refs(stmt);
             let aliases = Self::extract_table_aliases(stmt);
+            let cte_names = Self::extract_cte_names(stmt);
             for table_name in &table_refs {
-                if !schema.tables.iter().any(|t| t.name == *table_name) {
+                if !cte_names.contains(table_name)
+                    && !schema.tables.iter().any(|t| t.name == *table_name)
+                {
                     issues.push(SchemaIssue {
                         message: format!("Table '{}' not found in schema", table_name),
                     });
@@ -516,6 +534,43 @@ impl QueryLanguagePlugin for SqlPlugin {
                                     ),
                                     column: col_name.clone(),
                                 });
+                            }
+                        }
+                        // Unqualified `*`: expand to every nullable column of
+                        // each table in scope (so `SELECT * FROM users` is
+                        // null-checked, not silently skipped).
+                        SelectItem::Wildcard(_) => {
+                            for table_name in &table_refs {
+                                if let Some(table) =
+                                    schema.tables.iter().find(|t| t.name == *table_name)
+                                {
+                                    for col in table.columns.iter().filter(|c| c.nullable) {
+                                        issues.push(NullIssue {
+                                            message: format!(
+                                                "Nullable column '{}' selected via wildcard without COALESCE or null handling",
+                                                col.name
+                                            ),
+                                            column: col.name.clone(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        // Alias-qualified `u.*`: expand the resolved table only.
+                        SelectItem::QualifiedWildcard(obj, _) => {
+                            let table_name =
+                                Self::resolve_qualifier(&aliases, &obj.to_string().to_lowercase());
+                            if let Some(table) = schema.tables.iter().find(|t| t.name == table_name)
+                            {
+                                for col in table.columns.iter().filter(|c| c.nullable) {
+                                    issues.push(NullIssue {
+                                        message: format!(
+                                            "Nullable column '{}' selected via wildcard without COALESCE or null handling",
+                                            col.name
+                                        ),
+                                        column: col.name.clone(),
+                                    });
+                                }
                             }
                         }
                         _ => {}
