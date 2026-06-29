@@ -3,11 +3,11 @@
 # See: https://github.com/hyperpolymath/gv-clade-index
 
 [identity]
-uuid = "a5ea1382-a34c-5334-8a46-a2ebe904c810"
+uuid = "ab7a2fde-22da-5be2-a3e3-69ee74996701"
 primary-forge = "github"
 primary-owner = "hyperpolymath"
-canonical-name = "rsr-template-repo"
-prefixed-name = "rm-rsr-template-repo"
+canonical-name = "typedqliser"
+prefixed-name = "rm-typedqliser"
 
 [clade]
 primary = "rm"
@@ -16,9 +16,9 @@ assigned = "2026-03-16"
 rationale = ""
 
 [forges]
-github = "hyperpolymath/rsr-template-repo"
-gitlab = "hyperpolymath/rsr-template-repo"
-bitbucket = "hyperpolymath/rsr-template-repo"
+github = "hyperpolymath/typedqliser"
+gitlab = "hyperpolymath/typedqliser"
+bitbucket = "hyperpolymath/typedqliser"
 
 [lineage]
 type = "standalone"
