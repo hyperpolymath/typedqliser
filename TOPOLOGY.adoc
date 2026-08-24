@@ -1,14 +1,19 @@
-<!-- SPDX-License-Identifier: CC-BY-SA-4.0 -->
-<!-- Copyright (c) 2026 Jonathan D.A. Jewell (hyperpolymath) <j.d.a.jewell@open.ac.uk> -->
-# TOPOLOGY.md — typedqliser
+== TOPOLOGY.md — typedqliser
 
-## Purpose
+=== Purpose
 
-typedqliser adds formal type safety to any query language (SQL, GraphQL, Datalog, Cypher, and beyond) and is the #1 priority in the -iser family. It reads a `typedqliser.toml` manifest specifying the query language, database backend, and type-safety level (1–10), then type-checks queries against the database schema and generates typed query wrappers with optional proof certificates. typedqliser is designed for teams who need compile-time guarantees that queries are well-typed with respect to their schema, preventing entire classes of runtime errors.
+typedqliser adds formal type safety to any query language (SQL, GraphQL,
+Datalog, Cypher, and beyond) and is the #1 priority in the -iser family.
+It reads a `+typedqliser.toml+` manifest specifying the query language,
+database backend, and type-safety level (1–10), then type-checks queries
+against the database schema and generates typed query wrappers with
+optional proof certificates. typedqliser is designed for teams who need
+compile-time guarantees that queries are well-typed with respect to
+their schema, preventing entire classes of runtime errors.
 
-## Module Map
+=== Module Map
 
-```
+....
 typedqliser/
 ├── src/
 │   ├── main.rs                    # CLI entry point (clap): init, check, generate, build, run, info
@@ -21,11 +26,11 @@ typedqliser/
 ├── verification/                  # Proof harnesses
 ├── container/                     # Stapeln container ecosystem
 └── .machine_readable/             # A2ML metadata
-```
+....
 
-## Data Flow
+=== Data Flow
 
-```
+....
 typedqliser.toml manifest
         │
    ┌────▼────┐
@@ -44,4 +49,4 @@ typedqliser.toml manifest
    ┌────▼────┐
    │  CI gate │  exit 1 on type errors (--ci mode)
    └─────────┘
-```
+....
